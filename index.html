@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Associazione Kayak Como - Open Day 2026</title>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <!-- html2pdf per esportare PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+            background: #eef2f5;
+            min-height: 100vh;
+            padding: 30px 20px;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .header {
+            background: white;
+            border-radius: 20px;
+            padding: 20px 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        .logo-area { display: flex; align-items: center; gap: 16px; }
+        .logo-img { width: 60px; height: 60px; object-fit: contain; }
+        .logo-text h1 { font-size: 1.5rem; color: #1a4d6b; font-weight: 600; }
+        .logo-text p { color: #5a7a8c; font-size: 0.8rem; }
+        .date-badge { background: #1a4d6b; padding: 8px 20px; border-radius: 40px; color: white; text-align: center; }
+        .date-badge .day { font-size: 1.3rem; font-weight: 600; }
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 28px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        .section-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #1a4d6b;
+            margin-bottom: 24px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #e0e8ed;
+        }
+        .turni-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 16px;
+            margin-bottom: 30px;
+        }
+        .turno-card {
+            background: #f8fafc;
+            border-radius: 16px;
+            padding: 16px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid #e2e8f0;
+        }
+        .turno-card.selected { background: #e8f0f5; border-color: #1a4d6b; }
+        .turno-card:hover { border-color: #1a4d6b; transform: translateY(-2px); }
+        .turno-orario { font-size: 1.4rem; font-weight: 600; color: #1a4d6b; }
+        .turno-posti { font-size: 0.8rem; margin-top: 8px; color: #5a7a8c; }
+        .turno-posti.pieno { color: #c0392b; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .form-group { margin-bottom: 18px; }
+        label { display: block; font-weight: 500; margin-bottom: 6px; color: #1a4d6b; font-size: 0.85rem; }
+        input, select {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1px solid #d0dce4;
+            border-radius: 12px;
+            font-size: 0.9rem;
+            background: white;
+            font-family: inherit;
+        }
+        input:focus { outline: none; border-color: #1a4d6b; box-shadow: 0 0 0 3px rgba(26,77,107,0.1); }
+        .release-box {
+            background: #f8fafc;
+            padding: 20px;
+            border-radius: 16px;
+            margin: 20px 0;
+            font-size: 0.85rem;
+            line-height: 1.6;
+            border: 1px solid #e8edf2;
+        }
+        .minor-section {
+            background: #fef9e6;
+            border-radius: 16px;
+            padding: 18px;
+            margin-top: 16px;
+            border: 1px solid #f0e4c0;
+        }
+        .accept-section {
+            margin: 24px 0 20px 0;
+            padding: 16px;
+            background: #f8fafc;
+            border-radius: 16px;
+            border: 1px solid #e8edf2;
+        }
+        .checkbox-line {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        .checkbox-line input { width: 18px; height: 18px; margin-top: 2px; }
+        .signature-left {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #e0e8ed;
+        }
+        .signature-left-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex: 1;
+            min-width: 200px;
+        }
+        .signature-left-item .label { font-weight: 500; color: #1a4d6b; font-size: 0.8rem; min-width: 50px; }
+        .signature-left-item input { flex: 1; padding: 8px 12px; }
+        .btn-primary {
+            background: #1a4d6b;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 40px;
+            font-size: 0.95rem;
+            font-weight: 500;
+            cursor: pointer;
+            width: 100%;
+        }
+        .btn-primary:hover { background: #0f3a52; }
+        .btn-secondary {
+            background: #5a7a8c;
+        }
+        .btn-secondary:hover { background: #4a6a7c; }
+        .admin-login-panel {
+            background: #f8fafc;
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            align-items: flex-end;
+        }
+        .admin-input { flex: 1; min-width: 180px; }
+        .admin-panel { display: none; }
+        .admin-panel.active { display: block; }
+        .admin-actions { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; }
+        .admin-actions button { width: auto; padding: 8px 16px; font-size: 0.85rem; background: #1a4d6b; color: white; border: none; border-radius: 40px; cursor: pointer; }
+        .table-wrapper { overflow-x: auto; border-radius: 12px; border: 1px solid #e0e8ed; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+        th { background: #e8f0f5; color: #1a4d6b; padding: 12px 8px; text-align: left; }
+        td { padding: 10px 8px; border-bottom: 1px solid #e8edf2; }
+        .delete-btn { background: #e74c3c; border: none; padding: 4px 10px; border-radius: 20px; color: white; cursor: pointer; }
+        .message { margin-top: 16px; padding: 12px; border-radius: 12px; text-align: center; font-size: 0.85rem; }
+        .error { background: #fee2e2; color: #c0392b; }
+        .success { background: #e0f2e9; color: #1e6f3f; }
+        .footer-note { text-align: center; color: #7a9aac; margin-top: 20px; font-size: 0.75rem; }
+        .user-info { margin-top: 10px; font-size: 0.8rem; color: #1a4d6b; text-align: right; }
+        @media (max-width: 700px) { .form-row { grid-template-columns: 1fr; } .header { flex-direction: column; text-align: center; } .logo-area { justify-content: center; } }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <div class="logo-area">
+            <img class="logo-img" src="data:image/png;base64,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" alt="Associazione Kayak Como">
+            <div class="logo-text"><h1>Associazione Kayak Como</h1><p>Sport • Natura • Sicurezza</p></div>
+        </div>
+        <div class="date-badge"><div class="day">31 MAGGIO 2026</div><div class="month">OPEN DAY</div></div>
+    </div>
+
+    <div class="card">
+        <div class="section-title">Scegli il tuo turno</div>
+        <div id="turniContainer" class="turni-grid"></div>
+        <form id="prenotazioneForm">
+            <div class="form-row">
+                <div class="form-group"><label>Nome e Cognome *</label><input type="text" id="nome" placeholder="Mario Rossi" required></div>
+                <div class="form-group"><label>Data di nascita *</label><input type="date" id="dataNascita" required></div>
+                <div class="form-group"><label>Luogo di nascita *</label><input type="text" id="luogoNascita" placeholder="Como" required></div>
+                <div class="form-group"><label>Residenza *</label><input type="text" id="residenza" placeholder="Via Roma 12, Como" required></div>
+                <div class="form-group"><label>Telefono *</label><input type="tel" id="telefono" placeholder="+39 333 1234567" required></div>
+                <div class="form-group"><label>Email *</label><input type="email" id="email" placeholder="mario@example.com" required></div>
+            </div>
+            <div class="release-box">
+                <strong>DICHIARAZIONE DI PARTECIPAZIONE E LIBERATORIA RESPONSABILITÀ</strong><br><br>
+                Il/la sottoscritto/a <strong id="nomePreview">_________________</strong> partecipa volontariamente alle attività previste durante l'evento <strong>OPEN DAY</strong> organizzato dall'<strong>Associazione Kayak Como</strong> il <strong>31 maggio 2026</strong>, con piena consapevolezza dei rischi associati ad attività in ambiente naturale e prende atto che l'<strong>Associazione Kayak Como</strong> non sarà ritenuta responsabile per eventuali infortuni o danni causati durante l'evento.
+            </div>
+            <div id="minorSection" class="minor-section" style="display: none;">
+                <strong>SEZIONE DA COMPILARE SOLO IN CASO DI MINORENNI</strong><br><br>
+                <div class="form-group"><label>Nome e Cognome del genitore/tutore:</label><input type="text" id="genitoreNome" placeholder="Nome e cognome"></div>
+                <div class="form-group"><label>Relazione con il minore:</label><input type="text" id="relazioneMinore" placeholder="Padre, Madre, Tutore"></div>
+                <div class="release-box" style="background: #fef9e6; margin-top: 12px;">
+                    Il/la sottoscritto/a <strong id="genitorePreview">_________________</strong> genitore/tutore del minore <strong id="minorePreview">_________________</strong> solleva l'<strong>Associazione Kayak Como</strong> da ogni responsabilità sul minore durante l'evento OPEN DAY del 31 maggio 2026.
+                </div>
+                <div class="signature-left-item" style="margin-top: 12px;"><span class="label">Firma genitore:</span><input type="text" id="firmaGenitore" placeholder="Firma elettronica"></div>
+            </div>
+            <div class="accept-section">
+                <div class="checkbox-line"><input type="checkbox" id="accettaTermini" required><span>Confermo di aver letto e accettato la dichiarazione di responsabilità e i termini dell'Open Day</span></div>
+                <div class="signature-left">
+                    <div class="signature-left-item"><span class="label">Firma:</span><input type="text" id="firmaPartecipante" placeholder="Firma elettronica"></div>
+                    <div class="signature-left-item"><span class="label">Data:</span><input type="date" id="dataFirma" value="2026-05-31"></div>
+                </div>
+            </div>
+            <input type="hidden" id="turnoSelezionato" value="">
+            <button type="submit" class="btn-primary" id="btnPrenota">PRENOTA IL TUO POSTO</button>
+            <div id="message"></div>
+        </form>
+    </div>
+
+    <div class="card">
+        <div class="section-title">Area Organizzatori</div>
+        <div id="authSection" class="admin-login-panel">
+            <div class="admin-input"><label>Email</label><input type="email" id="loginEmail" placeholder="admin@kayakcomo.it"></div>
+            <div class="admin-input"><label>Password</label><input type="password" id="loginPassword" placeholder="password"></div>
+            <button id="btnLoginAuth" class="btn-primary" style="width: auto;">Accedi</button>
+            <button id="btnLogoutAuth" class="btn-primary btn-secondary" style="width: auto; display: none;">Esci</button>
+        </div>
+        <div id="adminPanel" class="admin-panel">
+            <div class="admin-actions">
+                <div style="display: flex; gap: 10px;">
+                    <select id="adminTurnoSelect"></select>
+                    <button id="btnExportCSV">Esporta CSV</button>
+                    <button id="btnExportPDF">Esporta PDF</button>
+                </div>
+            </div>
+            <div class="table-wrapper" id="adminTableContainer"></div>
+        </div>
+        <div id="authMessage" class="message" style="display:none;"></div>
+    </div>
+    <div class="footer-note">Associazione Kayak Como ASD - Lago di Como - Prova gratuita su prenotazione</div>
+</div>
+
+<script>
+    // -------------------- 🔥 CONFIGURAZIONE FIREBASE (INSERISCI QUI I TUOI DATI) --------------------
+    const firebaseConfig = {
+        // 👇 INSERISCI QUI LA TUA CONFIGURAZIONE FIREBASE (copiata dalla console Firebase)
+        apiKey: "YOUR_API_KEY",
+        authDomain: "YOUR_AUTH_DOMAIN",
+        projectId: "YOUR_PROJECT_ID",
+        storageBucket: "YOUR_STORAGE_BUCKET",
+        messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+        appId: "YOUR_APP_ID"
+    };
+    // ------------------------------------------------------------------------------------------------
+
+    // Inizializza Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    const auth = firebase.auth();
+    const prenotazioniRef = db.collection("prenotazioni");
+
+    const TURNI = [
+        { ora: "10:00", label: "10:00", maxPosti: 15, key: "10" },
+        { ora: "11:30", label: "11:30", maxPosti: 15, key: "1130" },
+        { ora: "14:00", label: "14:00", maxPosti: 15, key: "14" },
+        { ora: "15:30", label: "15:30", maxPosti: 15, key: "1530" },
+        { ora: "17:00", label: "17:00", maxPosti: 15, key: "17" }
+    ];
+
+    let currentUser = null;
+
+    function mostraMessaggio(msg, tipo, targetId = 'message') {
+        const msgDiv = document.getElementById(targetId);
+        if (msgDiv) {
+            msgDiv.innerHTML = `<div class="message ${tipo}">${msg}</div>`;
+            setTimeout(() => { if(msgDiv) msgDiv.innerHTML = ''; }, 5000);
+        }
+    }
+
+    function calcolaEta(dataNascita) {
+        if (!dataNascita) return null;
+        const oggi = new Date();
+        const nascita = new Date(dataNascita);
+        let eta = oggi.getFullYear() - nascita.getFullYear();
+        const meseDiff = oggi.getMonth() - nascita.getMonth();
+        if (meseDiff < 0 || (meseDiff === 0 && oggi.getDate() < nascita.getDate())) eta--;
+        return eta;
+    }
+
+    function aggiornaSezioneMinori() {
+        const nome = document.getElementById('nome')?.value || '';
+        const dataNascita = document.getElementById('dataNascita')?.value;
+        const eta = calcolaEta(dataNascita);
+        const minorSection = document.getElementById('minorSection');
+        const nomePreview = document.getElementById('nomePreview');
+        const minorePreview = document.getElementById('minorePreview');
+        const genitorePreview = document.getElementById('genitorePreview');
+        if (nomePreview) nomePreview.innerText = nome || "_________________";
+        if (minorePreview) minorePreview.innerText = nome || "_________________";
+        if (eta !== null && eta < 18) {
+            if (minorSection) minorSection.style.display = 'block';
+            ['genitoreNome', 'relazioneMinore', 'firmaGenitore'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.setAttribute('required', 'required');
+            });
+        } else {
+            if (minorSection) minorSection.style.display = 'none';
+            ['genitoreNome', 'relazioneMinore', 'firmaGenitore'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.removeAttribute('required');
+            });
+        }
+        const genitoreVal = document.getElementById('genitoreNome')?.value || '';
+        if (genitorePreview) genitorePreview.innerText = genitoreVal || "_________________";
+    }
+
+    async function caricaPrenotazioni() {
+        try {
+            const snapshot = await prenotazioniRef.orderBy("timestamp", "desc").get();
+            const lista = [];
+            snapshot.forEach(doc => lista.push({ id: doc.id, ...doc.data() }));
+            return lista;
+        } catch (e) {
+            console.error("Errore caricamento:", e);
+            mostraMessaggio("Errore nel caricamento dei dati. Ricarica la pagina.", "error");
+            return [];
+        }
+    }
+
+    async function aggiungiPrenotazione(event) {
+        event.preventDefault();
+        let turnoKey = document.getElementById('turnoSelezionato').value;
+        if (!turnoKey) { mostraMessaggio("Seleziona un turno!", "error"); return; }
+        if (!document.getElementById('accettaTermini').checked) { mostraMessaggio("Devi accettare la dichiarazione di responsabilità.", "error"); return; }
+
+        const nome = document.getElementById('nome').value.trim();
+        const dataNascita = document.getElementById('dataNascita').value;
+        const luogoNascita = document.getElementById('luogoNascita').value.trim();
+        const residenza = document.getElementById('residenza').value.trim();
+        const telefono = document.getElementById('telefono').value.trim();
+        const email = document.getElementById('email').value.trim();
+        const firmaPartecipante = document.getElementById('firmaPartecipante').value.trim();
+        const dataFirma = document.getElementById('dataFirma').value;
+        if (!nome || !dataNascita || !luogoNascita || !residenza || !telefono || !email) {
+            mostraMessaggio("Compila tutti i campi obbligatori.", "error");
+            return;
+        }
+        if (!firmaPartecipante) { mostraMessaggio("Inserisci la firma del partecipante.", "error"); return; }
+
+        const eta = calcolaEta(dataNascita);
+        let genitoreNome = '', relazioneMinore = '', firmaGenitore = '';
+        if (eta < 18) {
+            genitoreNome = document.getElementById('genitoreNome').value.trim();
+            relazioneMinore = document.getElementById('relazioneMinore').value.trim();
+            firmaGenitore = document.getElementById('firmaGenitore').value.trim();
+            if (!genitoreNome || !relazioneMinore || !firmaGenitore) {
+                mostraMessaggio("Per i minorenni, compilare tutti i campi della sezione genitore/tutore.", "error");
+                return;
+            }
+        }
+
+        const turnoInfo = TURNI.find(t => t.key === turnoKey);
+        const tutte = await caricaPrenotazioni();
+        const occupati = tutte.filter(p => p.turno === turnoKey).length;
+        if (occupati >= turnoInfo.maxPosti) {
+            mostraMessaggio("Turno completo!", "error");
+            return;
+        }
+
+        const nuova = {
+            turno: turnoKey, turnoLabel: turnoInfo.label,
+            nome, dataNascita, luogoNascita, residenza, telefono, email,
+            firmaPartecipante, dataFirma,
+            isMinorenne: eta < 18,
+            genitoreNome, relazioneMinore, firmaGenitore,
+            timestamp: new Date().toISOString()
+        };
+
+        try {
+            await prenotazioniRef.add(nuova);
+            document.getElementById('prenotazioneForm').reset();
+            document.getElementById('turnoSelezionato').value = '';
+            document.querySelectorAll('.turno-card').forEach(c => c.classList.remove('selected'));
+            document.getElementById('minorSection').style.display = 'none';
+            await renderTurniUI();
+            if (currentUser) await renderAdminTable();
+            mostraMessaggio(`✅ Prenotazione confermata per le ${turnoInfo.label}!`, "success");
+        } catch (e) {
+            console.error(e);
+            mostraMessaggio("Errore nel salvataggio. Riprova.", "error");
+        }
+    }
+
+    async function renderTurniUI() {
+        const container = document.getElementById('turniContainer');
+        if (!container) return;
+        const tutte = await caricaPrenotazioni();
+        const counts = {};
+        TURNI.forEach(t => counts[t.key] = 0);
+        tutte.forEach(p => { if (counts[p.turno] !== undefined) counts[p.turno]++; });
+        let html = '';
+        TURNI.forEach(turno => {
+            const occupati = counts[turno.key] || 0;
+            const liberi = turno.maxPosti - occupati;
+            const isPieno = liberi <= 0;
+            html += `<div class="turno-card" data-turno="${turno.key}">
+                        <div class="turno-orario">${turno.label}</div>
+                        <div class="turno-posti ${isPieno ? 'pieno' : ''}">${liberi}/${turno.maxPosti} posti ${isPieno ? 'Completo' : 'disponibili'}</div>
+                     </div>`;
+        });
+        container.innerHTML = html;
+        document.querySelectorAll('.turno-card').forEach(card => {
+            card.addEventListener('click', async () => {
+                const turnoKey = card.getAttribute('data-turno');
+                const turnoData = TURNI.find(t => t.key === turnoKey);
+                if (!turnoData) return;
+                const tutte = await caricaPrenotazioni();
+                const occupati = tutte.filter(p => p.turno === turnoKey).length;
+                if (occupati >= turnoData.maxPosti) {
+                    mostraMessaggio("Turno completo!", "error");
+                    return;
+                }
+                document.querySelectorAll('.turno-card').forEach(c => c.classList.remove('selected'));
+                card.classList.add('selected');
+                document.getElementById('turnoSelezionato').value = turnoKey;
+            });
+        });
+    }
+
+    async function renderAdminTable() {
+        const container = document.getElementById('adminTableContainer');
+        const filter = document.getElementById('adminTurnoSelect').value;
+        if (!container) return;
+        let tutte = await caricaPrenotazioni();
+        if (filter !== 'all') tutte = tutte.filter(p => p.turno === filter);
+        if (tutte.length === 0) {
+            container.innerHTML = '<div style="padding:30px;text-align:center;">Nessuna prenotazione.</div>';
+            return;
+        }
+        let html = '<table><thead><tr><th>Turno</th><th>Nominativo</th><th>Data/Luogo nascita</th><th>Residenza</th><th>Telefono/Email</th><th>Firma/Data</th><th>Minore</th><th>Genitore</th><th></th></tr></thead><tbody>';
+        tutte.forEach(p => {
+            html += `<tr>
+                        <td>${escapeHtml(p.turnoLabel)}</td>
+                        <td><strong>${escapeHtml(p.nome)}</strong></td>
+                        <td>${p.dataNascita}<br>${escapeHtml(p.luogoNascita)}</td>
+                        <td>${escapeHtml(p.residenza)}</td>
+                        <td>${escapeHtml(p.telefono)}<br>${escapeHtml(p.email)}</td>
+                        <td>${escapeHtml(p.firmaPartecipante)}<br>${p.dataFirma}</td>
+                        <td>${p.isMinorenne ? 'Sì' : 'No'}</td>
+                        <td>${p.isMinorenne ? escapeHtml(p.genitoreNome) + '<br>' + escapeHtml(p.relazioneMinore) : '-'}</td>
+                        <td><button class="delete-btn" data-id="${p.id}">Elimina</button></td>
+                     </tr>`;
+        });
+        html += '</tbody></table>';
+        container.innerHTML = html;
+        document.querySelectorAll('.delete-btn').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                if (!currentUser) {
+                    mostraMessaggio("Devi essere autenticato per eliminare.", "error", "authMessage");
+                    return;
+                }
+                if (confirm("Eliminare questa prenotazione?")) {
+                    const id = btn.getAttribute('data-id');
+                    await prenotazioniRef.doc(id).delete();
+                    await renderTurniUI();
+                    await renderAdminTable();
+                    mostraMessaggio("Prenotazione eliminata.", "success", "authMessage");
+                }
+            });
+        });
+    }
+
+    function escapeHtml(str) { if (!str) return ''; return str.replace(/[&<>]/g, m => m==='&'?'&amp;':m==='<'?'&lt;':'&gt;'); }
+
+    function populateAdminTurniSelect() {
+        const select = document.getElementById('adminTurnoSelect');
+        if (!select) return;
+        let opts = '<option value="all">Tutti i turni</option>';
+        TURNI.forEach(t => opts += `<option value="${t.key}">${t.label}</option>`);
+        select.innerHTML = opts;
+        select.addEventListener('change', () => { if (currentUser) renderAdminTable(); });
+    }
+
+    async function exportToCSV() {
+        const filter = document.getElementById('adminTurnoSelect').value;
+        let tutte = await caricaPrenotazioni();
+        if (filter !== 'all') tutte = tutte.filter(p => p.turno === filter);
+        if (tutte.length === 0) { alert("Nessun dato da esportare."); return; }
+        const headers = ["Turno","Nome","DataNascita","LuogoNascita","Residenza","Telefono","Email","FirmaPartecipante","DataFirma","Minorenne","Genitore","Relazione"];
+        let csv = headers.join(",") + "\n";
+        tutte.forEach(p => {
+            csv += `"${p.turnoLabel}","${p.nome}","${p.dataNascita}","${p.luogoNascita}","${p.residenza}","${p.telefono}","${p.email}","${p.firmaPartecipante}","${p.dataFirma}","${p.isMinorenne}","${p.genitoreNome || ''}","${p.relazioneMinore || ''}"\n`;
+        });
+        const blob = new Blob([csv], {type: "text/csv"});
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = `prenotazioni_kayak_${new Date().toISOString().slice(0,19)}.csv`;
+        link.click();
+    }
+
+    async function exportToPDF() {
+        const filter = document.getElementById('adminTurnoSelect').value;
+        let tutte = await caricaPrenotazioni();
+        if (filter !== 'all') tutte = tutte.filter(p => p.turno === filter);
+        if (tutte.length === 0) { alert("Nessun dato da esportare."); return; }
+        let htmlContent = `<html><head><title>Prenotazioni Open Day</title>
+                <style>body{font-family:Arial;margin:20px;} h1{color:#1a4d6b;} table{width:100%;border-collapse:collapse;} th,td{border:1px solid #ddd;padding:6px;text-align:left;} th{background:#1a4d6b;color:white;}</style>
+                </head><body><h1>Associazione Kayak Como - Open Day 31/05/2026</h1>`;
+        if (filter === 'all') {
+            for (let turno of TURNI) {
+                const turnoFiltered = tutte.filter(p => p.turno === turno.key);
+                if (turnoFiltered.length) {
+                    htmlContent += `<h2>Turno ${turno.label} (${turnoFiltered.length}/${turno.maxPosti})</h2>`;
+                    htmlContent += ` table <thead><th>Nome</th><th>Data nascita</th><th>Residenza</th><th>Telefono</th><th>Email</th><th>Firma</th></thead><tbody>`;
+                    turnoFiltered.forEach(p => {
+                        htmlContent += `<tr><td>${escapeHtml(p.nome)}</td><td>${p.dataNascita}</td><td>${escapeHtml(p.residenza)}</td><td>${escapeHtml(p.telefono)}</td><td>${escapeHtml(p.email)}</td><td>${escapeHtml(p.firmaPartecipante)} (${p.dataFirma})</td></tr>`;
+                    });
+                    htmlContent += `</tbody></table>`;
+                }
+            }
+        } else {
+            htmlContent += `<h2>Prenotazioni</h2><table><thead><th>Nome</th><th>Data nascita</th><th>Residenza</th><th>Telefono</th><th>Email</th><th>Firma</th></thead><tbody>`;
+            tutte.forEach(p => {
+                htmlContent += `<tr><td>${escapeHtml(p.nome)}</td><td>${p.dataNascita}</td><td>${escapeHtml(p.residenza)}</td><td>${escapeHtml(p.telefono)}</td><td>${escapeHtml(p.email)}</td><td>${escapeHtml(p.firmaPartecipante)} (${p.dataFirma})</td></tr>`;
+            });
+            htmlContent += `</tbody></table>`;
+        }
+        htmlContent += `<p>Generato il ${new Date().toLocaleString()}</p></body></html>`;
+        const element = document.createElement('div');
+        element.innerHTML = htmlContent;
+        document.body.appendChild(element);
+        html2pdf().from(element).set({ margin: 0.5, filename: `prenotazioni_${new Date().toISOString().slice(0,19)}.pdf`, html2canvas: { scale: 2 } }).save().then(() => { document.body.removeChild(element); });
+    }
+
+    function setupAuth() {
+        const btnLogin = document.getElementById('btnLoginAuth');
+        const btnLogout = document.getElementById('btnLogoutAuth');
+        const emailInput = document.getElementById('loginEmail');
+        const pwdInput = document.getElementById('loginPassword');
+        const loginPanel = document.getElementById('authSection');
+        const adminPanel = document.getElementById('adminPanel');
+
+        auth.onAuthStateChanged(async (user) => {
+            if (user) {
+                currentUser = user;
+                btnLogin.style.display = 'none';
+                btnLogout.style.display = 'inline-block';
+                adminPanel.classList.add('active');
+                await renderAdminTable();
+                mostraMessaggio(`Benvenuto ${user.email}`, "success", "authMessage");
+            } else {
+                currentUser = null;
+                btnLogin.style.display = 'inline-block';
+                btnLogout.style.display = 'none';
+                adminPanel.classList.remove('active');
+            }
+        });
+
+        btnLogin.addEventListener('click', async () => {
+            const email = emailInput.value.trim();
+            const password = pwdInput.value.trim();
+            if (!email || !password) {
+                mostraMessaggio("Inserisci email e password.", "error", "authMessage");
+                return;
+            }
+            try {
+                await auth.signInWithEmailAndPassword(email, password);
+                emailInput.value = '';
+                pwdInput.value = '';
+            } catch (error) {
+                console.error(error);
+                mostraMessaggio("Login fallito: credenziali non valide.", "error", "authMessage");
+            }
+        });
+
+        btnLogout.addEventListener('click', async () => {
+            await auth.signOut();
+            mostraMessaggio("Logout effettuato.", "success", "authMessage");
+        });
+    }
+
+    document.getElementById('nome')?.addEventListener('input', aggiornaSezioneMinori);
+    document.getElementById('dataNascita')?.addEventListener('change', aggiornaSezioneMinori);
+    document.getElementById('genitoreNome')?.addEventListener('input', aggiornaSezioneMinori);
+
+    async function init() {
+        await renderTurniUI();
+        setupAuth();
+        populateAdminTurniSelect();
+        document.getElementById('prenotazioneForm').addEventListener('submit', aggiungiPrenotazione);
+        document.getElementById('btnExportCSV').addEventListener('click', exportToCSV);
+        document.getElementById('btnExportPDF').addEventListener('click', exportToPDF);
+        aggiornaSezioneMinori();
+    }
+    init();
+</script>
+</body>
+</html>
